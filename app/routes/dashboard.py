@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from bson import ObjectId
 from app.db import db
-
+from typing import Dict, List
 router = APIRouter(prefix="/dashboard", tags=["Projects & Dashboard"])
 
 projects_collection = db["projects"]
@@ -29,8 +29,10 @@ class Supplier(BaseModel):
     user_id: str
     name: str
     location: str
+    industry: str
     risk_score: int
     status: str
+    categories: Dict[str, List[str]] = None  # ✅ Will be added dynamically
 
 class MarketScore(BaseModel):
     industry:str
@@ -109,17 +111,26 @@ def delete_project(project_id: str, user_id: str = Query(...)):
     return {"message": f"Project {project_id} deleted"}
 
 # ---------------------- SUPPLIERS CRUD ----------------------
-@router.get("/suppliers")
-def get_suppliers(user_id: str = Query(...)):
-    return [serialize(s) for s in suppliers_collection.find({"user_id": ObjectId(user_id)})]
+@router.get("/suppliers/by-industry")
+def get_suppliers_by_industry(industry: str = Query(...)):
+    return [serialize(s) for s in suppliers_collection.find({"industry": industry})]
 
 @router.post("/suppliers")
 def create_supplier(supplier: Supplier):
     data = supplier.dict()
     data["user_id"] = ObjectId(data["user_id"])
+
+    # ✅ Add categories dynamically
+    levels = ["Low", "Medium", "High"]
+    data["categories"] = {
+        "Financial": levels,
+        "Geopolitical": levels,
+        "Delivery": levels
+    }
+
     result = suppliers_collection.insert_one(data)
     return serialize(suppliers_collection.find_one({"_id": result.inserted_id}))
-
+    
 @router.delete("/suppliers/{supplier_id}")
 def delete_supplier(supplier_id: str, user_id: str = Query(...)):
     result = suppliers_collection.delete_one({"_id": ObjectId(supplier_id), "user_id": ObjectId(user_id)})
