@@ -22,6 +22,7 @@ class CommodityPrice(BaseModel):
     commodity: str   # e.g., Oil, Copper, Gas
     date: str        # YYYY-MM-DD
     price: float
+    industry:str
 
 
 class Supplier(BaseModel):
@@ -32,6 +33,7 @@ class Supplier(BaseModel):
     status: str
 
 class MarketScore(BaseModel):
+    industry:str
     domain: str
     score: int
     date: str
@@ -127,8 +129,16 @@ def delete_supplier(supplier_id: str, user_id: str = Query(...)):
 
 # ---------------------- MARKET SCORES CRUD ----------------------
 @router.get("/market-scores")
-def get_market_scores():
-    return [serialize(m) for m in market_scores_collection.find()]
+def get_market_scores(industry: str = Query(None)):
+    """
+    Fetch market scores, optionally filtered by industry.
+    Example: /market-scores?industry=Technology
+    """
+    query = {}
+    if industry:
+        query["industry"] = industry
+
+    return [serialize(m) for m in market_scores_collection.find(query)]
 
 @router.post("/market-scores")
 def create_market_score(market_score: MarketScore):
@@ -164,13 +174,12 @@ def create_commodity_price(price: CommodityPrice):
 
 
 @router.get("/commodity-prices")
-def get_commodity_prices(commodity: str = Query(None)):
+def get_commodity_prices(industry: str = Query(...)):
     """
-    Fetch last 10 days of commodity prices (optionally filter by commodity type).
+    Fetch last 10 days of commodity prices based on industry.
+    Example: industry=Technology
     """
-    query = {}
-    if commodity:
-        query["commodity"] = commodity
+    query = {"industry": industry}
 
     docs = (
         commodity_prices_collection
@@ -180,22 +189,6 @@ def get_commodity_prices(commodity: str = Query(None)):
     )
 
     return [serialize(d) for d in docs]
-    """
-    Fetch last 10 days of commodity prices for a user (optionally filtered by commodity type).
-    """
-    query = {"user_id": ObjectId(user_id)}
-    if commodity:
-        query["commodity"] = commodity
-
-    docs = (
-        commodity_prices_collection
-        .find(query)
-        .sort("date", -1)   # sort by date descending
-        .limit(10)
-    )
-
-    return [serialize(d) for d in docs]
-
 
 
 # ---------------------- Risk Endpoints ----------------------
@@ -212,6 +205,14 @@ def add_risk(risk: Risk):
     return serialize(inserted_risk)
 
 @router.get("/all")
-def get_risks():
-    """Get all risks for heatmap"""
-    return [serialize(r) for r in risks_collection.find()]
+def get_risks(industry: str = Query(None)):
+    """
+    Get risks for heatmap.
+    If industry is provided, filter by industry.
+    Example: /all?industry=Technology
+    """
+    query = {}
+    if industry:
+        query["industry"] = industry
+
+    return [serialize(r) for r in risks_collection.find(query)]
