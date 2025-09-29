@@ -43,12 +43,21 @@ class ForecastCreate(BaseModel):
     industry: str | None = None
 # ---------------- Vendors ----------------
 class Vendor(BaseModel):
-    name: str
-    hq: str
-    tier: str
-    risk_score: float
-    delivery_rate: float
-    ESG_rating: float
+    # Existing fields
+    name: str                          # e.g. "AlloyCorp"
+    hq: str                            # e.g. "Germany"
+    tier: int                          # e.g. 1, 2, 3
+    risk_score: int                    # e.g. 25, 78
+    delivery_rate: float               # % e.g. 98.5
+    ESG_rating: str                    # e.g. "A" to "F"
+    flag: str | None = None            # e.g. "🇩🇪"
+    industry: str                      # e.g. "Automotive", "Electronics"
+    address: str | None = None         # Headquarters full addres
+    # Risk score breakdown for Radar Chart
+    risk_breakdown: dict | None = None # e.g. {"financial": 70, "geopolitical": 60, "operational": 50, "compliance": 65, "cyber": 80}
+    annual_revenue: float | None = None    # e.g. 5.2e9 (USD)
+    employees: int | None = None           # e.g. 25000
+    year_founded: int | None = None        # e.g. 1985
 
 # ---------------- Vendor News ----------------
 class VendorNews(BaseModel):
@@ -256,13 +265,50 @@ def get_futures_curve(material_id: str):
 # ---------------- Vendors ----------------
 @router.post("/vendors")
 def create_vendor(vendor: Vendor):
-    result = vendors_collection.insert_one(vendor.dict())
+    vendor_dict = vendor.dict()
+    result = vendors_collection.insert_one(vendor_dict)
     return serialize(vendors_collection.find_one({"_id": result.inserted_id}))
 
 @router.get("/vendors")
-def list_vendors():
-    return [serialize(v) for v in vendors_collection.find()]
+def list_vendors(industry: str | None = None):
+    query = {}
+    if industry:
+        query["industry"] = industry
+    return [serialize(v) for v in vendors_collection.find(query)]
+@router.get("/vendors/{vendor_id}/risk_breakdown")
+def get_vendor_risk_breakdown(vendor_id: str):
+    vendor = vendors_collection.find_one({"_id": ObjectId(vendor_id)})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
 
+    if "risk_breakdown" not in vendor or vendor["risk_breakdown"] is None:
+        raise HTTPException(status_code=404, detail="Risk breakdown not available")
+
+    return {
+        "vendor_id": str(vendor["_id"]),
+        "name": vendor.get("name"),
+        "risk_breakdown": vendor["risk_breakdown"]
+    }
+
+@router.get("/vendors/{vendor_id}/key_metrics")
+def get_vendor_profile(vendor_id: str):
+    vendor = vendors_collection.find_one({"_id": ObjectId(vendor_id)})
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    profile = {
+        "vendor_id": str(vendor["_id"]),
+        # Key metrics
+        "key_metrics": {
+            "name": vendor.get("name"),
+            "address": vendor.get("address"),
+            "annual_revenue": vendor.get("annual_revenue"),
+            "employees": vendor.get("employees"),
+            "year_founded": vendor.get("year_founded")
+        }
+    }
+
+    return profile
 @router.put("/vendors/{vendor_id}")
 def update_vendor(vendor_id: str, vendor: Vendor):
     result = vendors_collection.update_one(
@@ -288,6 +334,16 @@ def create_vendor_news(news: VendorNews):
     result = vendor_news_collection.insert_one(data)
     return serialize(vendor_news_collection.find_one({"_id": result.inserted_id}))
 
-@router.get("/vendor-news")
-def list_vendor_news():
-    return [serialize(n) for n in vendor_news_collection.find()]
+@router.get("/vendor-news/{vendor_id}")
+def list_vendor_news(vendor_id: str):
+    try:
+        vendor_object_id = ObjectId(vendor_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid vendor_id format")
+
+    news_items = list(vendor_news_collection.find({"vendor_id": vendor_object_id}))
+    
+    if not news_items:
+        raise HTTPException(status_code=404, detail="No news found for this vendor")
+    
+    return [serialize(n) for n in news_items]
