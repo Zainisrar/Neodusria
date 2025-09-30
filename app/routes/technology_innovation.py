@@ -71,6 +71,9 @@ class ResearchPaper(BaseModel):
     institution: str
     summary: str
     tags: List[str]
+    industry: str                # <-- Added
+    publication_date: str        # ISO format YYYY-MM-DD
+    field_of_study: str          # <-- Added
 
 class Startup(BaseModel):
     name: str
@@ -98,12 +101,12 @@ def get_patents(industry: str | None = None):
         query["industry"] = industry  # filter by industry if provided
     return serialize_list(patents_collection.find(query))
 
-# @router.get("/patents/{patent_id}")
-# def get_patent(patent_id: str):
-#     patent = patents_collection.find_one({"_id": ObjectId(patent_id)})
-#     if not patent:
-#         raise HTTPException(status_code=404, detail="Patent not found")
-#     return serialize(patent)
+@router.get("/patents/{patent_id}")
+def get_patent(patent_id: str):
+    patent = patents_collection.find_one({"_id": ObjectId(patent_id)})
+    if not patent:
+        raise HTTPException(status_code=404, detail="Patent not found")
+    return serialize(patent)
 
 @router.put("/patents/{patent_id}")
 def update_patent(patent_id: str, patent: Patent):
@@ -126,9 +129,13 @@ def create_paper(paper: ResearchPaper):
     result = papers_collection.insert_one(paper.dict())
     return serialize(papers_collection.find_one({"_id": result.inserted_id}))
 
+# ---------- GET RESEARCH PAPERS ----------
 @router.get("/papers")
-def get_papers():
-    return serialize_list(papers_collection.find())
+def get_papers(industry: str | None = None):
+    query = {}
+    if industry:
+        query["industry"] = industry   # filter if industry provided
+    return serialize_list(papers_collection.find(query))
 
 @router.get("/papers/{paper_id}")
 def get_paper(paper_id: str):
