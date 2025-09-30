@@ -81,6 +81,9 @@ class Startup(BaseModel):
     funding_stage: str  # e.g. Seed, Series A, Series B
     funding_amount: float
     investors: Optional[List[str]] = []  # investor ids (frontend sends them)
+    industry: str                        # <-- Added
+    location: str                        # <-- Added
+    lead_investor: str                   # <-- Added
 
 class Investor(BaseModel):
     name: str
@@ -100,14 +103,12 @@ def get_patents(industry: str | None = None):
     if industry:
         query["industry"] = industry  # filter by industry if provided
     return serialize_list(patents_collection.find(query))
-
 @router.get("/patents/{patent_id}")
 def get_patent(patent_id: str):
     patent = patents_collection.find_one({"_id": ObjectId(patent_id)})
     if not patent:
         raise HTTPException(status_code=404, detail="Patent not found")
     return serialize(patent)
-
 @router.put("/patents/{patent_id}")
 def update_patent(patent_id: str, patent: Patent):
     result = patents_collection.update_one(
@@ -116,7 +117,6 @@ def update_patent(patent_id: str, patent: Patent):
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Patent not updated")
     return serialize(patents_collection.find_one({"_id": ObjectId(patent_id)}))
-
 @router.delete("/patents/{patent_id}")
 def delete_patent(patent_id: str):
     patents_collection.delete_one({"_id": ObjectId(patent_id)})
@@ -128,7 +128,6 @@ def delete_patent(patent_id: str):
 def create_paper(paper: ResearchPaper):
     result = papers_collection.insert_one(paper.dict())
     return serialize(papers_collection.find_one({"_id": result.inserted_id}))
-
 # ---------- GET RESEARCH PAPERS ----------
 @router.get("/papers")
 def get_papers(industry: str | None = None):
@@ -136,7 +135,6 @@ def get_papers(industry: str | None = None):
     if industry:
         query["industry"] = industry   # filter if industry provided
     return serialize_list(papers_collection.find(query))
-
 @router.get("/papers/{paper_id}")
 def get_paper(paper_id: str):
     paper = papers_collection.find_one({"_id": ObjectId(paper_id)})
@@ -164,13 +162,16 @@ def delete_paper(paper_id: str):
 def create_startup(startup: Startup):
     data = startup.dict()
     data["investors"] = process_investor_ids(data["investors"])
-    
     result = startups_collection.insert_one(data)
     return serialize(startups_collection.find_one({"_id": result.inserted_id}))
 
 @router.get("/startups")
-def get_startups():
-    return serialize_list(startups_collection.find())
+def get_startups(industry: str | None = None):
+    query = {}
+    if industry:
+        query["industry"] = industry   # filter if industry provided
+    return serialize_list(startups_collection.find(query))
+
 
 @router.get("/startups/{startup_id}")
 def get_startup(startup_id: str):
