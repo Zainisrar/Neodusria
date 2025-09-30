@@ -84,6 +84,9 @@ class Startup(BaseModel):
     industry: str                        # <-- Added
     location: str                        # <-- Added
     lead_investor: str                   # <-- Added
+    founded: int                      # Year founded
+    team_size: int                   # Number of employees
+    about: str                       # Description of the startup
 
 class Investor(BaseModel):
     name: str

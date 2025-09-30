@@ -1,8 +1,28 @@
 from fastapi import FastAPI
-from app.routes import users, news_alerts, dashboard, global_markets, technology_innovation, regulation, competitive
-
+from fastapi.middleware.cors import CORSMiddleware
+from app.routes import (
+    users,
+    news_alerts,
+    dashboard,
+    global_markets,
+    technology_innovation,
+    regulation,
+    competitive,
+)
 app = FastAPI(title="Neodustria API")
-
+# :small_blue_diamond: Enable CORS so React (localhost:3000) can call the API
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # add your production domains here when you deploy
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],   # GET, POST, PUT, OPTIONS etc.
+    allow_headers=["*"],   # Accept, Authorization etc.
+)
 # Register routers
 app.include_router(users.router)
 app.include_router(news_alerts.router)
@@ -11,7 +31,11 @@ app.include_router(global_markets.router)
 app.include_router(technology_innovation.router)
 app.include_router(regulation.router)
 app.include_router(competitive.router)
-
 @app.get("/")
 def root():
     return {"message": "Neodustria API is running!"}
+
+
+
+
+
