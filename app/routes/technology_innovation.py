@@ -62,6 +62,8 @@ class Patent(BaseModel):
     status: str       # e.g. "Granted", "Pending"
     citations: int
     abstract: str
+    industry: str     # <-- Added industry field
+
 
 class ResearchPaper(BaseModel):
     title: str
@@ -89,17 +91,19 @@ class Investor(BaseModel):
 def create_patent(patent: Patent):
     result = patents_collection.insert_one(patent.dict())
     return serialize(patents_collection.find_one({"_id": result.inserted_id}))
-
 @router.get("/patents")
-def get_patents():
-    return serialize_list(patents_collection.find())
+def get_patents(industry: str | None = None):
+    query = {}
+    if industry:
+        query["industry"] = industry  # filter by industry if provided
+    return serialize_list(patents_collection.find(query))
 
-@router.get("/patents/{patent_id}")
-def get_patent(patent_id: str):
-    patent = patents_collection.find_one({"_id": ObjectId(patent_id)})
-    if not patent:
-        raise HTTPException(status_code=404, detail="Patent not found")
-    return serialize(patent)
+# @router.get("/patents/{patent_id}")
+# def get_patent(patent_id: str):
+#     patent = patents_collection.find_one({"_id": ObjectId(patent_id)})
+#     if not patent:
+#         raise HTTPException(status_code=404, detail="Patent not found")
+#     return serialize(patent)
 
 @router.put("/patents/{patent_id}")
 def update_patent(patent_id: str, patent: Patent):
