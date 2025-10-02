@@ -8,6 +8,7 @@ from app.routes import (
     technology_innovation,
     regulation,
     competitive,
+    chatbot
 )
 app = FastAPI(title="Neodustria API")
 # :small_blue_diamond: Enable CORS so React (localhost:3000) can call the API
@@ -31,6 +32,7 @@ app.include_router(global_markets.router)
 app.include_router(technology_innovation.router)
 app.include_router(regulation.router)
 app.include_router(competitive.router)
+app.include_router(chatbot.router)
 @app.get("/")
 def root():
     return {"message": "Neodustria API is running!"}
