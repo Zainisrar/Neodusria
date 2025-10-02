@@ -22,6 +22,13 @@ class Competitor(BaseModel):
     logo: Optional[str]  # store image URL or base64 string
     industry: str
 
+    # --- Strategic Posture Fields ---
+    rd_investment: Optional[int]
+    price_point: Optional[int]
+    market_share_growth: Optional[int]
+    ma_activity: Optional[int]   # renamed to match "M&A Activity"
+    marketing_spend: Optional[int]
+
 class CompetitorEvent(BaseModel):
     competitor_id: str
     type: str
@@ -74,6 +81,53 @@ def list_competitors(industry: str = Query(None, description="Filter by industry
         for c in competitors_collection.find(query)
     ]
     return competitors
+
+@router.get("/strategic-posture")
+def get_posture(
+    competitor_id: str = Query(..., description="Competitor MongoDB _id"),
+    use_placeholders: bool = Query(False, description="Use placeholder values if missing")
+):
+    axes = ["R&D Investment", "Price Point", "Market Share Growth", "M&A Activity", "Marketing Spend"]
+
+    placeholder_competitor = [8, 7, 5, 3, 7]
+
+    # Dummy "Our Company" data (hardcoded)
+    our_company_name = "Our Company"
+    our_scores = [6, 5, 7, 8, 6]
+
+    def scores_from_doc(doc):
+        return [
+            doc.get("rd_investment", 0),
+            doc.get("price_point", 0),
+            doc.get("market_share_growth", 0),
+            doc.get("ma_activity", 0),
+            doc.get("marketing_spend", 0),
+        ]
+
+    # Competitor lookup by _id
+    try:
+        comp_obj_id = ObjectId(competitor_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid competitor_id format")
+
+    comp_doc = competitors_collection.find_one({"_id": comp_obj_id})
+    if comp_doc:
+        competitor_scores = scores_from_doc(comp_doc)
+        competitor_name = comp_doc["name"]
+    elif use_placeholders:
+        competitor_scores = placeholder_competitor
+        competitor_name = "Competitor"
+    else:
+        raise HTTPException(status_code=404, detail="Competitor posture not found")
+
+    return {
+        "axes": axes,
+        "series": [
+            {"name": "Competitor", "company": competitor_name, "data": competitor_scores},
+            {"name": "Us", "company": our_company_name, "data": our_scores},
+        ]
+    }
+
 
 # ------------------ CRUD: Competitor Events ------------------
 @router.post("/events")
