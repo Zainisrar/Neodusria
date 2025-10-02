@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from bson import ObjectId
 from app.db import db
-
+from fastapi import Query
 router = APIRouter(prefix="/competitive", tags=["Competitive Intelligence"])
 
 # ------------------ MongoDB Collections ------------------
@@ -20,6 +20,7 @@ class Competitor(BaseModel):
     revenue: Optional[float]
     employees: Optional[int]
     logo: Optional[str]  # store image URL or base64 string
+    industry: str
 
 class CompetitorEvent(BaseModel):
     competitor_id: str
@@ -63,11 +64,16 @@ def create_competitor(comp: Competitor):
     return {"id": str(result.inserted_id)}
 
 @router.get("/competitors")
-def list_competitors():
-    return [
+def list_competitors(industry: str = Query(None, description="Filter by industry")):
+    query = {}
+    if industry:
+        query["industry"] = industry  # match industry field in MongoDB
+
+    competitors = [
         {**c, "_id": str(c["_id"])}
-        for c in competitors_collection.find()
+        for c in competitors_collection.find(query)
     ]
+    return competitors
 
 # ------------------ CRUD: Competitor Events ------------------
 @router.post("/events")
