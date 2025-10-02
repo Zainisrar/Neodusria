@@ -82,6 +82,17 @@ def list_competitors(industry: str = Query(None, description="Filter by industry
     ]
     return competitors
 
+@router.get("/competitors/{competitor_id}")
+def get_competitor(competitor_id: str):
+    try:
+        competitor = competitors_collection.find_one({"_id": ObjectId(competitor_id)})
+        if not competitor:
+            raise HTTPException(status_code=404, detail="Competitor not found")
+        competitor["_id"] = str(competitor["_id"])  # convert ObjectId to string
+        return competitor
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid competitor ID format")
+        
 @router.get("/strategic-posture")
 def get_posture(
     competitor_id: str = Query(..., description="Competitor MongoDB _id"),
